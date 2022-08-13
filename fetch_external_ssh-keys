@@ -5,6 +5,21 @@ CACHE=$( mktemp -d )
 JQ=$(	whereis jq	| awk '{ print $2 }'	)
 CURL=$(	whereis curl	| awk '{ print $2 }'	)
 
+if [ x$JQ = x ] ; then
+	echo
+	echo jq is not installed
+	echo
+	echo Please install using
+	echo "        "sudo apt install jq
+fi
+if [ x$CURL = x ] ; then
+	echo
+	echo curl is not installed
+	echo
+	echo Please install using
+	echo "        "sudo apt install curl
+fi
+
 [ x$JQ != x ] &&
 [ x$CURL != x ] &&
 for REQUEST_FILE in $( find /home/ /root -path '*/.ssh/*@github' 2>/dev/null ) ; do
