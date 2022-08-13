@@ -1,0 +1,39 @@
+#!/bin/bash
+
+CACHE=$( mktemp -d )
+
+JQ=$(	whereis jq	| awk '{ print $2 }'	)
+CURL=$(	whereis curl	| awk '{ print $2 }'	)
+
+[ x$JQ != x ] &&
+[ x$CURL != x ] &&
+for REQUEST_FILE in $( find /home/ /root -path '*/.ssh/*@github' 2>/dev/null ) ; do
+	DIR=$(		dirname  $REQUEST_FILE 			)
+	USER=$(		basename $REQUEST_FILE | sed "s/@.*//"	)
+	SERVICE=$(	basename $REQUEST_FILE | sed "s/.*@//"	)
+
+	case "$SERVICE" in
+		"github")
+			[ ! -f $CACHE/github.$USER ] &&
+				curl -s https://api.github.com/users/$USER/keys > $CACHE/github.$USER
+			if [ -e $DIR/authorized_keys2 ] ; then
+				cp $DIR/authorized_keys2 	$CACHE/authorized_keys
+			else
+				touch				$CACHE/authorized_keys
+			fi
+			grep -v :$USER@$SERVICE < $CACHE/authorized_keys > $DIR/authorized_keys2
+			for N in $( seq 0 999 ) ; do
+				KEY=$(	jq -r .[$N].key	< $CACHE/github.$USER )
+				KEY_=$( echo $KEY | sed "s/\\//\\//g" | sed "s/\\$/\\$/g" )
+				ID=$(	jq -r .[$N].id	< $CACHE/github.$USER )
+				if [ "$KEY" == "null" ] ; then
+					break
+				fi
+				echo $KEY_ $ID:$USER@$SERVICE		>>	$DIR/authorized_keys2
+			done
+			;;
+	esac
+	echo ===== $SERVICE ===== $USER ===== $DIR ===== $REQUEST_FILE =====
+done
+
+rm -rf $CACHE
